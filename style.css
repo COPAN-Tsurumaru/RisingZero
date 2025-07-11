@@ -1,0 +1,23 @@
+body {
+  font-family: "sans-serif";
+  text-align: center;
+  background-color: #fff0f5;
+  margin: 0;
+  padding: 30px;
+}
+
+h1 {
+  color: #ff69b4;
+}
+
+#gameCanvas {
+  background-color: #000;
+  border: 4px solid #ff69b4;
+  display: block;
+  margin: 20px auto;
+}
+
+#score {
+  font-size: 1.4em;
+  color: #333;
+}
