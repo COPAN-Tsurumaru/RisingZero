@@ -1,95 +1,107 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const gridSize = 32;
-const tileCount = 10;
 
-let pacman = { x: 1, y: 1 };
-let ghost = { x: 8, y: 8 };
-let dots = [];
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const playerColor = "#ffffff"; // 自機の色
+const bulletColor = "#00ffcc"; // 弾の色
+const enemyColor = "#ff4444"; // 敵の色
+const backgroundColor = "#111111"; // 背景
+
 let score = 0;
+let isGameOver = false;
 
-const scoreDisplay = document.getElementById("score");
+const player = {
+  x: canvas.width / 2 - 15,
+  y: canvas.height - 60,
+  width: 30,
+  height: 30,
+  speed: 5,
+  bullets: []
+};
 
-function initDots() {
-  dots = [];
-  for (let y = 0; y < tileCount; y++) {
-    for (let x = 0; x < tileCount; x++) {
-      if (!(x === pacman.x && y === pacman.y) && !(x === ghost.x && y === ghost.y)) {
-        dots.push({ x, y });
+const enemies = [];
+const keys = {};
+
+function spawnEnemy() {
+  const x = Math.random() * (canvas.width - 30);
+  enemies.push({ x, y: -30, width: 30, height: 30, speed: 2 });
+}
+
+function update() {
+  if (isGameOver) return;
+
+  if (keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["ArrowRight"]) player.x += player.speed;
+
+  player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+
+  player.bullets.forEach((b, i) => {
+    b.y -= b.speed;
+    if (b.y < 0) player.bullets.splice(i, 1);
+  });
+
+  enemies.forEach((e, i) => {
+    e.y += e.speed;
+    if (e.y > canvas.height) isGameOver = true;
+
+    player.bullets.forEach((b, bi) => {
+      if (b.x < e.x + e.width && b.x + b.width > e.x &&
+          b.y < e.y + e.height && b.y + b.height > e.y) {
+        enemies.splice(i, 1);
+        player.bullets.splice(bi, 1);
+        score += 10;
       }
-    }
-  }
+    });
+  });
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw dots
-  ctx.fillStyle = "#fff";
-  dots.forEach(dot => {
-    ctx.beginPath();
-    ctx.arc(dot.x * gridSize + gridSize / 2, dot.y * gridSize + gridSize / 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  // Draw player
+  ctx.fillStyle = playerColor;
+  ctx.fillRect(player.x, player.y, player.width, player.height);
 
-  // Draw Pacman
-  ctx.fillStyle = "yellow";
-  ctx.beginPath();
-  ctx.arc(pacman.x * gridSize + gridSize / 2, pacman.y * gridSize + gridSize / 2, 12, 0.25 * Math.PI, 1.75 * Math.PI);
-  ctx.lineTo(pacman.x * gridSize + gridSize / 2, pacman.y * gridSize + gridSize / 2);
-  ctx.fill();
+  // Draw bullets
+  ctx.fillStyle = bulletColor;
+  player.bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
-  // Draw ghost
-  ctx.fillStyle = "pink";
-  ctx.beginPath();
-  ctx.arc(ghost.x * gridSize + gridSize / 2, ghost.y * gridSize + gridSize / 2, 12, 0, Math.PI * 2);
-  ctx.fill();
+  // Draw enemies
+  ctx.fillStyle = enemyColor;
+  enemies.forEach(e => ctx.fillRect(e.x, e.y, e.width, e.height));
 
-  scoreDisplay.textContent = "スコア: " + score;
-}
+  // Draw score
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "16px sans-serif";
+  ctx.fillText("Score: " + score, 10, 20);
 
-function moveGhost() {
-  const dx = pacman.x - ghost.x;
-  const dy = pacman.y - ghost.y;
-  if (Math.abs(dx) > Math.abs(dy)) {
-    ghost.x += dx > 0 ? 1 : -1;
-  } else {
-    ghost.y += dy > 0 ? 1 : -1;
+  if (isGameOver) {
+    ctx.fillStyle = "#ff0000";
+    ctx.font = "32px sans-serif";
+    ctx.fillText("GAME OVER", canvas.width / 2 - 90, canvas.height / 2);
   }
 }
 
-function gameLoop() {
-  moveGhost();
+function loop() {
+  update();
   draw();
-
-  // Check collision with ghost
-  if (pacman.x === ghost.x && pacman.y === ghost.y) {
-    alert("ゲームオーバー！スコア: " + score);
-    pacman = { x: 1, y: 1 };
-    ghost = { x: 8, y: 8 };
-    score = 0;
-    initDots();
-  }
-
-  // Eat dot
-  dots = dots.filter(dot => {
-    if (dot.x === pacman.x && dot.y === pacman.y) {
-      score += 10;
-      return false;
-    }
-    return true;
-  });
-
-  setTimeout(gameLoop, 700);
+  requestAnimationFrame(loop);
 }
 
-window.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp" && pacman.y > 0) pacman.y--;
-  else if (e.key === "ArrowDown" && pacman.y < tileCount - 1) pacman.y++;
-  else if (e.key === "ArrowLeft" && pacman.x > 0) pacman.x--;
-  else if (e.key === "ArrowRight" && pacman.x < tileCount - 1) pacman.x++;
+setInterval(spawnEnemy, 1000);
+document.addEventListener("keydown", (e) => {
+  keys[e.key] = true;
+  if (e.key === " " && !isGameOver) {
+    player.bullets.push({
+      x: player.x + player.width / 2 - 2,
+      y: player.y,
+      width: 4,
+      height: 10,
+      speed: 7
+    });
+  }
 });
+document.addEventListener("keyup", (e) => keys[e.key] = false);
 
-initDots();
-draw();
-gameLoop();
+loop();
